@@ -2,4 +2,4 @@
 
 [Jupiter notebook](moscow_places_hw.ipynb)
 
-[Презентация](moscow_places_hw.pdf)
+[Презентация](moscow_places_hw.pptx)

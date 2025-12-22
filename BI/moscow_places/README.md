@@ -1,5 +1,5 @@
 # Рынок заведений общественного питания Москвы
 
-[Jupiter notebook](moscow_places_hw.ipynb)
+[Jupiter notebook](answer.ipynb)
 
 [Презентация](moscow_places_hw.pptx)

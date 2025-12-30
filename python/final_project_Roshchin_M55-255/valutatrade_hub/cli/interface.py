@@ -7,7 +7,7 @@ import hashlib
 import secrets
 import string
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Any
 import argparse
 from pathlib import Path
 
@@ -95,77 +95,22 @@ class CryptoPortfolioCLI:
             print(f"Ошибка загрузки сессии: {e}")
             self.session_file.unlink(missing_ok=True)
 
-    def _create_parser(self) -> argparse.ArgumentParser:
-        """Создает парсер аргументов командной строки"""
-        parser = argparse.ArgumentParser(
-            description="Crypto Portfolio Manager - CLI интерфейс",
-            formatter_class=argparse.RawDescriptionHelpFormatter,
-            epilog="""
-Примеры использования:
-  register --username alice --password 1234
-  login --username alice --password 1234
-  show-portfolio
-  show-portfolio --base EUR
-  buy --currency BTC --amount 0.05
-  sell --currency BTC --amount 0.01
-  get-rate --from USD --to BTC
-            """,
-        )
+    def _save_session(self, user_data: dict[str, Any]):
+        """Сохраняет текущую сессию в файл"""
+        session_data = {
+            "user_id": user_data["user_id"],
+            "username": user_data["username"],
+            "login_time": datetime.now().isoformat(),
+        }
 
-        subparsers = parser.add_subparsers(dest="command", help="Доступные команды")
+        with open(self.session_file, "w", encoding="utf-8") as f:
+            json.dump(session_data, f, indent=2, ensure_ascii=False)
 
-        # Команда register
-        register_parser = subparsers.add_parser(
-            "register", help="Регистрация нового пользователя"
-        )
-        register_parser.add_argument(
-            "--username", required=True, help="Имя пользователя"
-        )
-        register_parser.add_argument("--password", required=True, help="Пароль")
-
-        # Команда login
-        login_parser = subparsers.add_parser("login", help="Вход в систему")
-        login_parser.add_argument("--username", required=True, help="Имя пользователя")
-        login_parser.add_argument("--password", required=True, help="Пароль")
-
-        # Команда show-portfolio
-        portfolio_parser = subparsers.add_parser(
-            "show-portfolio", help="Показать портфель"
-        )
-        portfolio_parser.add_argument(
-            "--base",
-            default="USD",
-            help="Базовая валюта для расчета (по умолчанию: USD)",
-        )
-
-        # Команда buy
-        buy_parser = subparsers.add_parser("buy", help="Купить валюту")
-        buy_parser.add_argument(
-            "--currency", required=True, help="Код покупаемой валюты (например: BTC)"
-        )
-        buy_parser.add_argument(
-            "--amount", type=float, required=True, help="Количество покупаемой валюты"
-        )
-
-        # Команда sell
-        sell_parser = subparsers.add_parser("sell", help="Продать валюту")
-        sell_parser.add_argument(
-            "--currency", required=True, help="Код продаваемой валюты"
-        )
-        sell_parser.add_argument(
-            "--amount", type=float, required=True, help="Количество продаваемой валюты"
-        )
-
-        # Команда get-rate
-        rate_parser = subparsers.add_parser("get-rate", help="Получить курс валюты")
-        rate_parser.add_argument(
-            "--from", dest="from_currency", required=True, help="Исходная валюта"
-        )
-        rate_parser.add_argument(
-            "--to", dest="to_currency", required=True, help="Целевая валюта"
-        )
-
-        return parser
+    def _clear_session(self):
+        """Очищает текущую сессию"""
+        self.current_user = None
+        if self.session_file.exists():
+            self.session_file.unlink(missing_ok=True)
 
     def _generate_salt(self, length: int = 8) -> str:
         """Генерирует случайную соль для хеширования пароля"""
@@ -265,30 +210,59 @@ class CryptoPortfolioCLI:
         return None
 
     def _get_user_portfolio(self, user_id: int) -> Optional[Portfolio]:
-        """Получает портфель пользователя по ID"""
+        """Получает портфель пользователя по ID, создает если не существует"""
         portfolios_data = self._load_portfolios()
 
+        # Ищем существующий портфель
         for portfolio_data in portfolios_data:
             if portfolio_data["user_id"] == user_id:
-                wallets = {}
-                for currency_code, wallet_data in portfolio_data["wallets"].items():
-                    wallets[currency_code] = Wallet.from_dict(wallet_data)
-                return Portfolio(user_id=user_id, wallets=wallets)
+                try:
+                    wallets = {}
+                    for currency_code, wallet_data in portfolio_data["wallets"].items():
+                        wallets[currency_code] = Wallet.from_dict(wallet_data)
+                    return Portfolio(user_id=user_id, wallets=wallets)
+                except Exception as e:
+                    print(f"Ошибка при загрузке портфеля: {e}")
+                    # Создаем новый портфель в случае ошибки
+                    break
 
-        return None
+        # Если портфель не найден, создаем новый
+        print(f"Портфель для пользователя {user_id} не найден, создаем новый...")
+        return self._create_default_portfolio(user_id)
+
+    def _create_default_portfolio(self, user_id: int) -> Portfolio:
+        """Создает портфель по умолчанию для пользователя"""
+        portfolio = Portfolio(user_id=user_id)
+        portfolio.add_currency("USD", 1000.0)
+        self._save_user_portfolio(portfolio)
+        return portfolio
 
     def _save_user_portfolio(self, portfolio: Portfolio):
         """Сохраняет портфель пользователя"""
         portfolios_data = self._load_portfolios()
 
+        # Конвертируем портфель в словарь
+        portfolio_dict = portfolio.to_dict()
+
+        # Проверяем правильность структуры
+        if "user_id" not in portfolio_dict:
+            portfolio_dict["user_id"] = portfolio.user_id
+        if "wallets" not in portfolio_dict:
+            portfolio_dict["wallets"] = {}
+            for currency_code, wallet in portfolio.wallets.items():
+                portfolio_dict["wallets"][currency_code] = wallet.to_dict()
+
         # Ищем существующий портфель
-        for i, portfolio_data in enumerate(portfolios_data):
-            if portfolio_data["user_id"] == portfolio.user_id:
-                portfolios_data[i] = portfolio.to_dict()
+        found = False
+        for i, p in enumerate(portfolios_data):
+            if p.get("user_id") == portfolio.user_id:
+                portfolios_data[i] = portfolio_dict
+                found = True
                 break
-        else:
-            # Если не нашли, добавляем новый
-            portfolios_data.append(portfolio.to_dict())
+
+        # Если не нашли, добавляем новый
+        if not found:
+            portfolios_data.append(portfolio_dict)
 
         self._save_portfolios(portfolios_data)
 
@@ -329,14 +303,24 @@ class CryptoPortfolioCLI:
         users.append(new_user)
         self._save_users(users)
 
-        # Создание пустого портфеля
-        portfolio = Portfolio(user_id=user_id)
-        portfolio.add_currency("USD", 0.0)  # Создаем USD кошелек по умолчанию
-        self._save_user_portfolio(portfolio)
+        # Создание пустого портфеля с начальным балансом 1000 USD
+        try:
+            portfolio = Portfolio(user_id=user_id)
+            # Добавляем USD кошелек с начальным балансом
+            portfolio.add_currency("USD", 1000.0)
+
+            # Сохраняем портфель
+            self._save_user_portfolio(portfolio)
+            print(f"Создан портфель для пользователя {username}")
+        except Exception as e:
+            print(f"Ошибка при создании портфеля: {e}")
+            # Создаем пустой портфель вручную
+            self._create_empty_portfolio(user_id)
 
         print(
             f"Пользователь '{username}' зарегистрирован (id={user_id}). Войдите: login --username {username} --password ****"
         )
+        print("Начальный баланс: 1000.00 USD")
 
     def login(self, args):
         """Обрабатывает команду login"""
@@ -376,7 +360,124 @@ class CryptoPortfolioCLI:
             user_data["registration_date"]
         )
 
+        # Сохраняем сессию
+        self._save_session(user_data)
+
         print(f"Вы вошли как '{username}'")
+
+    def logout(self):
+        """Обрабатывает команду logout"""
+        if not self.current_user:
+            print("Вы не вошли в систему")
+            return
+
+        username = self.current_user.username
+        self._clear_session()
+        print(f"Вы вышли из системы '{username}'")
+
+    def _create_parser(self) -> argparse.ArgumentParser:
+        """Создает парсер аргументов командной строки"""
+        parser = argparse.ArgumentParser(
+            description="Crypto Portfolio Manager - CLI интерфейс",
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            epilog="""
+Примеры использования:
+  register --username alice --password 1234
+  login --username alice --password 1234
+  logout
+  show-portfolio
+  show-portfolio --base EUR
+  buy --currency BTC --amount 0.05
+  sell --currency BTC --amount 0.01
+  get-rate --from USD --to BTC
+            """,
+        )
+
+        subparsers = parser.add_subparsers(dest="command", help="Доступные команды")
+
+        parser = argparse.ArgumentParser(
+            description="Crypto Portfolio Manager - CLI интерфейс",
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            epilog="""
+Примеры использования:
+  register --username alice --password 1234
+  login --username alice --password 1234
+  show-portfolio
+  show-portfolio --base EUR
+  buy --currency BTC --amount 0.05
+  sell --currency BTC --amount 0.01
+  get-rate --from USD --to BTC
+            """,
+        )
+
+        subparsers = parser.add_subparsers(dest="command", help="Доступные команды")
+
+        # Команда register
+        register_parser = subparsers.add_parser(
+            "register", help="Регистрация нового пользователя"
+        )
+        register_parser.add_argument(
+            "--username", required=True, help="Имя пользователя"
+        )
+        register_parser.add_argument("--password", required=True, help="Пароль")
+
+        # Команда login
+        login_parser = subparsers.add_parser("login", help="Вход в систему")
+        login_parser.add_argument("--username", required=True, help="Имя пользователя")
+        login_parser.add_argument("--password", required=True, help="Пароль")
+
+        # Команда show-portfolio
+        portfolio_parser = subparsers.add_parser(
+            "show-portfolio", help="Показать портфель"
+        )
+        portfolio_parser.add_argument(
+            "--base",
+            default="USD",
+            help="Базовая валюта для расчета (по умолчанию: USD)",
+        )
+
+        # Команда buy
+        buy_parser = subparsers.add_parser("buy", help="Купить валюту")
+        buy_parser.add_argument(
+            "--currency", required=True, help="Код покупаемой валюты (например: BTC)"
+        )
+        buy_parser.add_argument(
+            "--amount", type=float, required=True, help="Количество покупаемой валюты"
+        )
+
+        # Команда sell
+        sell_parser = subparsers.add_parser("sell", help="Продать валюту")
+        sell_parser.add_argument(
+            "--currency", required=True, help="Код продаваемой валюты"
+        )
+        sell_parser.add_argument(
+            "--amount", type=float, required=True, help="Количество продаваемой валюты"
+        )
+
+        # Команда get-rate
+        rate_parser = subparsers.add_parser("get-rate", help="Получить курс валюты")
+        rate_parser.add_argument(
+            "--from", dest="from_currency", required=True, help="Исходная валюта"
+        )
+        rate_parser.add_argument(
+            "--to", dest="to_currency", required=True, help="Целевая валюта"
+        )
+
+        # Добавляем команду logout
+        subparsers.add_parser("logout", help="Выход из системы")
+
+        return parser
+
+    def _create_empty_portfolio(self, user_id: int):
+        """Создает пустой портфель для пользователя"""
+        portfolio_data = {
+            "user_id": user_id,
+            "wallets": {"USD": {"currency_code": "USD", "balance": 1000.0}},
+        }
+
+        portfolios_data = self._load_portfolios()
+        portfolios_data.append(portfolio_data)
+        self._save_portfolios(portfolios_data)
 
     def show_portfolio(self, args):
         """Обрабатывает команду show-portfolio"""
@@ -390,7 +491,9 @@ class CryptoPortfolioCLI:
         portfolio = self._get_user_portfolio(self.current_user.user_id)
         if not portfolio:
             print(f"Портфель пользователя '{self.current_user.username}' не найден")
-            return
+            # Пытаемся создать портфель по умолчанию
+            portfolio = self._create_default_portfolio(self.current_user.user_id)
+            print(f"Создан новый портфель с начальным балансом 1000 USD")
 
         wallets = portfolio.wallets
         if not wallets:
@@ -630,6 +733,18 @@ class CryptoPortfolioCLI:
             return
 
         args = self.parser.parse_args()
+
+        # # Обработка команды logout
+        # if args.command == "logout":
+        #     self.logout()
+        #     return
+
+        # # Для команд, требующих авторизации, проверяем сессию
+        # auth_required_commands = ["show-portfolio", "buy", "sell"]
+        # if args.command in auth_required_commands:
+        #     if not self.current_user:
+        #         print("Ошибка: Сначала выполните login")
+        #         return
 
         if args.command == "register":
             self.register(args)

@@ -127,14 +127,11 @@ class DatabaseManager:
         # Создаем директорию, если ее нет
         file_path.parent.mkdir(exist_ok=True)
 
-        lock = self._get_file_lock(filename)
-
-        with lock:
-            try:
-                with open(file_path, "w", encoding="utf-8") as f:
-                    json.dump(data, f, indent=2, ensure_ascii=False)
-            except IOError as e:
-                raise DatabaseError(f"Ошибка сохранения файла {filename}: {e}")
+        try:
+            with open(file_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+        except IOError as e:
+            raise DatabaseError(f"Ошибка сохранения файла {filename}: {e}")
 
     def update_data(self, filename: str, update_func: callable) -> Any:
         """
@@ -151,22 +148,22 @@ class DatabaseManager:
         Raises:
             DatabaseError: При ошибке чтения/записи файла
         """
-        lock = self._get_file_lock(filename)
+        # lock = self._get_file_lock(filename)
 
-        with lock:
-            try:
-                # Загружаем данные
-                data = self.load_data(filename, default=[])
+        # with lock:
+        try:
+            # Загружаем данные
+            data = self.load_data(filename, default=[])
 
-                # Обновляем данные
-                result = update_func(data)
+            # Обновляем данные
+            result = update_func(data)
 
-                # Сохраняем обновленные данные
-                self.save_data(filename, data)
+            # Сохраняем обновленные данные
+            self.save_data(filename, data)
 
-                return result
-            except Exception as e:
-                raise DatabaseError(f"Ошибка обновления файла {filename}: {e}")
+            return result
+        except Exception as e:
+            raise DatabaseError(f"Ошибка обновления файла {filename}: {e}")
 
     def find_one(self, filename: str, condition: callable) -> Optional[Any]:
         """

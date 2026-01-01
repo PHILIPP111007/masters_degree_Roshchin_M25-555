@@ -199,4 +199,21 @@ def is_data_fresh(updated_at: datetime, ttl_seconds: int) -> bool:
     if not updated_at:
         return False
 
-    return datetime.now() - updated_at < timedelta(seconds=ttl_seconds)
+    # Приводим оба времени к offset-naive (без временной зоны)
+    # или оба к offset-aware (с временной зоной)
+    now = datetime.now()
+
+    # Если updated_at имеет временную зону, а now - нет
+    if updated_at.tzinfo is not None and now.tzinfo is None:
+        # Приводим now к той же временной зоне (или к UTC)
+        from datetime import timezone
+
+        now = datetime.now(timezone.utc)
+
+    # Если updated_at не имеет временной зоны, а now имеет
+    if updated_at.tzinfo is None and now.tzinfo is not None:
+        # Убираем временную зону у now
+        now = datetime.now().replace(tzinfo=None)
+
+    # Теперь оба времени в одном формате, можно сравнивать
+    return (now - updated_at).total_seconds() < ttl_seconds

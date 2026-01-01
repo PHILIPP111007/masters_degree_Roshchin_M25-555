@@ -101,3 +101,11 @@ poetry run python main.py show-rates --currency BTC
 # Показать топ-3 самые дорогие криптовалюты
 poetry run python main.py show-rates --top 3
 ```
+
+## asciinema
+
+Play demo.cast (asciinema)
+
+```bash
+asciinema play demo.cast
+```

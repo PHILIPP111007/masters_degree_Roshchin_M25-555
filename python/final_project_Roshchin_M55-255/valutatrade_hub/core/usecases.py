@@ -477,17 +477,7 @@ class ExchangeRateUseCases:
 
         Returns:
             Курс обмена или None
-
-        Raises:
-            CurrencyNotFoundError: Если валюта не поддерживается
         """
-        # Проверка поддержки валют
-        if not is_currency_supported(from_currency):
-            raise CurrencyNotFoundError(from_currency)
-
-        if not is_currency_supported(to_currency):
-            raise CurrencyNotFoundError(to_currency)
-
         # Если валюты одинаковые
         if from_currency.upper() == to_currency.upper():
             return 1.0
@@ -495,30 +485,48 @@ class ExchangeRateUseCases:
         # Загрузка курсов
         rates_data = db_manager.load_data("rates", default={})
 
-        # Проверка свежести данных
-        ttl_seconds = settings.get_rates_ttl_seconds()
+        print(f"DEBUG: Ищем курс {from_currency} → {to_currency}")
+        print(
+            f"DEBUG: Структура rates_data: {list(rates_data.keys()) if rates_data else 'пусто'}"
+        )
 
-        if "last_refresh" in rates_data:
-            last_refresh = datetime.fromisoformat(rates_data["last_refresh"])
-            if not is_data_fresh(last_refresh, ttl_seconds):
-                # Данные устарели, пытаемся обновить
-                ExchangeRateUseCases._refresh_rates()
-                rates_data = db_manager.load_data("rates", default={})
-
-        # Поиск курса
+        # Пытаемся найти курс в разных форматах
         pair = f"{from_currency.upper()}_{to_currency.upper()}"
 
+        # Вариант 1: Прямо в корне (старый формат)
         if pair in rates_data and isinstance(rates_data[pair], dict):
-            return rates_data[pair].get("rate")
+            rate = rates_data[pair].get("rate")
+            if rate:
+                print(f"DEBUG: Найден курс в корне: {rate}")
+                return rate
 
-        # Если прямого курса нет, пробуем найти через обратный
+        # Вариант 2: В секции "pairs" (новый формат)
+        if "pairs" in rates_data and pair in rates_data["pairs"]:
+            rate = rates_data["pairs"][pair].get("rate")
+            if rate:
+                print(f"DEBUG: Найден курс в pairs: {rate}")
+                return rate
+
+        # Вариант 3: Обратный курс
         reverse_pair = f"{to_currency.upper()}_{from_currency.upper()}"
 
+        # В корне
         if reverse_pair in rates_data and isinstance(rates_data[reverse_pair], dict):
             reverse_rate = rates_data[reverse_pair].get("rate")
             if reverse_rate and reverse_rate != 0:
-                return 1.0 / reverse_rate
+                rate = 1.0 / reverse_rate
+                print(f"DEBUG: Найден обратный курс в корне: {reverse_rate} → {rate}")
+                return rate
 
+        # В секции "pairs"
+        if "pairs" in rates_data and reverse_pair in rates_data["pairs"]:
+            reverse_rate = rates_data["pairs"][reverse_pair].get("rate")
+            if reverse_rate and reverse_rate != 0:
+                rate = 1.0 / reverse_rate
+                print(f"DEBUG: Найден обратный курс в pairs: {reverse_rate} → {rate}")
+                return rate
+
+        print(f"DEBUG: Курс {pair} не найден")
         return None
 
     @staticmethod

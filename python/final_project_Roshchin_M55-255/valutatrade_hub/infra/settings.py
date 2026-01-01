@@ -2,10 +2,9 @@
 Singleton для загрузки настроек
 """
 
-import json
 import tomli
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 import threading
 
 

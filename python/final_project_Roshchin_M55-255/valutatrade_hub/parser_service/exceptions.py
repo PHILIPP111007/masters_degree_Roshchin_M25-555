@@ -3,7 +3,6 @@
 """
 
 
-
 class ParserServiceError(Exception):
     """Базовое исключение для Parser Service"""
 

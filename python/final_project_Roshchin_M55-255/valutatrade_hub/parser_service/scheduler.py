@@ -5,7 +5,7 @@
 import logging
 import threading
 import time
-from typing import Optional, Any
+from typing import Any, Optional
 
 from valutatrade_hub.parser_service.config import config
 from valutatrade_hub.parser_service.exceptions import RateFetchError

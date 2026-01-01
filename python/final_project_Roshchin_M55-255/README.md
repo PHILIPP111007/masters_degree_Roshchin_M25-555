@@ -22,7 +22,7 @@ python main.py show-portfolio --base EUR
 Покупка валюты:
 
 ```bash
-python main.py buy --currency BTC --amount 0.05
+python main.py buy --currency BTC --amount 0.000005
 ```
 
 Продажа валюты:

@@ -3,12 +3,12 @@
 Вспомогательные функции для ValutaTrade Hub
 """
 
-import re
-import string
-import secrets
 import hashlib
-from typing import Optional, Tuple
+import re
+import secrets
+import string
 from datetime import datetime, timedelta
+from typing import Optional, Tuple
 
 
 def validate_currency_code(code: str) -> Tuple[bool, Optional[str]]:
@@ -87,7 +87,8 @@ def validate_username(username: str) -> Tuple[bool, Optional[str]]:
     if not re.match(r"^[a-zA-Z0-9_\-\.]+$", username):
         return (
             False,
-            "Имя пользователя может содержать только буквы, цифры, точку, дефис и подчеркивание",
+            "Имя пользователя может содержать только буквы, цифры, точку,"
+            " дефис и подчеркивание",
         )
 
     return True, None

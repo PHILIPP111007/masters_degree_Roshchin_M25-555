@@ -2,31 +2,27 @@
 CLI интерфейс для ValutaTrade Hub
 """
 
-import json
-import sys
 import argparse
-from typing import Optional, Dict, Any
-from pathlib import Path
+import sys
+from typing import Any, Dict, Optional
 
-from valutatrade_hub.logging_config import setup_logging, get_logger
-from valutatrade_hub.core.usecases import (
-    UserUseCases,
-    PortfolioUseCases,
-    ExchangeRateUseCases,
-)
+from valutatrade_hub.core.currencies import get_supported_currency_codes
 from valutatrade_hub.core.exceptions import (
-    InsufficientFundsError,
-    CurrencyNotFoundError,
     ApiRequestError,
-    UserNotFoundError,
     AuthenticationError,
+    CurrencyNotFoundError,
+    InsufficientFundsError,
+    UserNotFoundError,
     ValidationError,
 )
-from valutatrade_hub.parser_service import RatesUpdater, RatesScheduler, RatesStorage
-from valutatrade_hub.parser_service.config import config
-from valutatrade_hub.core.currencies import get_supported_currency_codes
+from valutatrade_hub.core.usecases import (
+    ExchangeRateUseCases,
+    PortfolioUseCases,
+    UserUseCases,
+)
 from valutatrade_hub.infra.settings import settings
-
+from valutatrade_hub.logging_config import get_logger, setup_logging
+from valutatrade_hub.parser_service import RatesStorage, RatesUpdater
 
 logger = get_logger(__name__)
 
@@ -105,7 +101,8 @@ class CryptoPortfolioCLI:
             "--base",
             "-b",
             default=settings.get_default_base_currency(),
-            help=f"Базовая валюта (по умолчанию: {settings.get_default_base_currency()})",
+            help=f"Базовая валюта (по умолчанию:"
+            f"{settings.get_default_base_currency()})",
         )
 
         # Команда buy
@@ -251,7 +248,8 @@ class CryptoPortfolioCLI:
         except CurrencyNotFoundError as e:
             print(f"Ошибка: {e}")
             print(
-                "Используйте команду 'list-currencies' для просмотра поддерживаемых валют"
+                "Используйте команду 'list-currencies'"
+                "для просмотра поддерживаемых валют"
             )
         except InsufficientFundsError as e:
             print(f"Ошибка: {e}")
@@ -302,7 +300,7 @@ class CryptoPortfolioCLI:
                 print(f"  Last refresh: {result['last_refresh']}")
 
                 if result["errors"]:
-                    print(f"\n⚠  Warnings:")
+                    print("\n⚠  Warnings:")
                     for error in result["errors"]:
                         print(f"  {error}")
             else:
@@ -324,7 +322,8 @@ class CryptoPortfolioCLI:
 
             if not rates_data.get("pairs"):
                 print(
-                    "Локальный кеш курсов пуст. Выполните 'update-rates', чтобы загрузить данные."
+                    "Локальный кеш курсов пуст. Выполните "
+                    "'update-rates', чтобы загрузить данные."
                 )
                 return
 
@@ -414,7 +413,8 @@ class CryptoPortfolioCLI:
         print(f"Стоимость: {result['cost_usd']:.2f} USD")
         print("\nИзменения в портфеле:")
         print(
-            f"  {args.currency}: {result['old_target_balance']:.6f} → {result['new_target_balance']:.6f}"
+            f"  {args.currency}: {result['old_target_balance']:.6f}"
+            f" → {result['new_target_balance']:.6f}"
         )
         print(
             f"  USD: {result['old_usd_balance']:.2f} → {result['new_usd_balance']:.2f}"
@@ -431,7 +431,8 @@ class CryptoPortfolioCLI:
         print(f"Выручка: {result['revenue_usd']:.2f} USD")
         print("\nИзменения в портфеле:")
         print(
-            f"  {args.currency}: {result['old_source_balance']:.6f} → {result['new_source_balance']:.6f}"
+            f"  {args.currency}: {result['old_source_balance']:.6f}"
+            f" → {result['new_source_balance']:.6f}"
         )
         print(
             f"  USD: {result['old_usd_balance']:.2f} → {result['new_usd_balance']:.2f}"
@@ -447,7 +448,8 @@ class CryptoPortfolioCLI:
         print("=" * 40)
         print(f"1 {args.from_currency} = {rate_info['rate']:.8f} {args.to_currency}")
         print(
-            f"1 {args.to_currency} = {rate_info['inverse_rate']:.8f} {args.from_currency}"
+            f"1 {args.to_currency} = {rate_info['inverse_rate']:.8f}"
+            f" {args.from_currency}"
         )
         print("\nИнформация о валютах:")
         print(f"  {rate_info['from_currency_info']}")

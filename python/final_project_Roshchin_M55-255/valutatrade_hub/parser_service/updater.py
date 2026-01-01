@@ -4,18 +4,17 @@
 
 import logging
 from datetime import datetime, timezone
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
+from valutatrade_hub.core.exceptions import ApiRequestError
 from valutatrade_hub.parser_service.api_clients import (
+    BaseApiClient,
     CoinGeckoClient,
     ExchangeRateApiClient,
-    BaseApiClient,
 )
-from valutatrade_hub.parser_service.storage import RatesStorage
 from valutatrade_hub.parser_service.config import config
 from valutatrade_hub.parser_service.exceptions import RateFetchError
-from valutatrade_hub.core.exceptions import ApiRequestError
-
+from valutatrade_hub.parser_service.storage import RatesStorage
 
 logger = logging.getLogger(__name__)
 

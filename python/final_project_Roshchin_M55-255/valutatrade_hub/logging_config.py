@@ -2,11 +2,11 @@
 Настройка логирования для ValutaTrade Hub
 """
 
+import json
 import logging
 import logging.handlers
-from pathlib import Path
-import json
 from datetime import datetime
+from pathlib import Path
 
 
 def setup_logging(

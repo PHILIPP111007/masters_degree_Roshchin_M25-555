@@ -2,9 +2,9 @@
 Иерархия валют для ValutaTrade Hub
 """
 
-from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any
 import re
+from abc import ABC, abstractmethod
+from typing import Dict
 
 
 class CurrencyNotFoundError(Exception):
@@ -115,7 +115,10 @@ class FiatCurrency(Currency):
 
     def get_display_info(self) -> str:
         """Возвращает строковое представление фиатной валюты"""
-        return f"[{self.currency_type}] {self.code} — {self.name} (Issuing: {self.issuing_country})"
+        return (
+            f"[{self.currency_type}] {self.code} — {self.name} (Issuing:"
+            f"{self.issuing_country})"
+        )
 
 
 class CryptoCurrency(Currency):
@@ -166,7 +169,10 @@ class CryptoCurrency(Currency):
             if self.market_cap > 1e6
             else f"{self.market_cap:,.2f}"
         )
-        return f"[{self.currency_type}] {self.code} — {self.name} (Algo: {self.algorithm}, MCAP: {mcap_str})"
+        return (
+            f"[{self.currency_type}] {self.code} — {self.name} "
+            f"(Algo: {self.algorithm}, MCAP: {mcap_str})"
+        )
 
 
 # Реестр валют

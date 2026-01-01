@@ -3,11 +3,11 @@
 """
 
 import json
+import shutil
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Any, Optional
-import shutil
+from typing import Any, Dict, List
 
 from valutatrade_hub.parser_service.config import config
 from valutatrade_hub.parser_service.exceptions import StorageError

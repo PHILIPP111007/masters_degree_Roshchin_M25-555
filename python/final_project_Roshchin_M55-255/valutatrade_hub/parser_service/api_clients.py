@@ -3,14 +3,13 @@
 """
 
 import json
-import time
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from typing import Any, Dict
+
 import requests
 
-from valutatrade_hub.parser_service.config import config
-from valutatrade_hub.parser_service.exceptions import RateFetchError
 from valutatrade_hub.core.exceptions import ApiRequestError
+from valutatrade_hub.parser_service.config import config
 
 
 class BaseApiClient(ABC):
@@ -142,7 +141,10 @@ class ExchangeRateApiClient(BaseApiClient):
             print("⚠️  ExchangeRate-API ключ не установлен, пропускаем фиатные валюты")
             return {}
 
-        url = f"{config.EXCHANGERATE_API_URL}/{config.EXCHANGERATE_API_KEY}/latest/{config.BASE_CURRENCY}"
+        url = (
+            f"{config.EXCHANGERATE_API_URL}/{config.EXCHANGERATE_API_KEY}/"
+            f"latest/{config.BASE_CURRENCY}"
+        )
 
         # Выполняем запрос
         data = self._make_request(url)

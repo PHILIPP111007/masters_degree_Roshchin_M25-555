@@ -3,25 +3,24 @@
 """
 
 import logging
-from typing import Dict, Optional, Tuple, Any
 from datetime import datetime, timedelta
+from typing import Any, Dict, Optional
 
-from valutatrade_hub.decorators import log_action, validate_input
+from valutatrade_hub.core.currencies import get_currency, is_currency_supported
 from valutatrade_hub.core.exceptions import (
-    InsufficientFundsError,
-    CurrencyNotFoundError,
     ApiRequestError,
-    UserNotFoundError,
     AuthenticationError,
+    CurrencyNotFoundError,
+    InsufficientFundsError,
     PortfolioNotFoundError,
+    UserNotFoundError,
     ValidationError,
 )
-from valutatrade_hub.core.currencies import get_currency, is_currency_supported
-from valutatrade_hub.core.models import User, Wallet, Portfolio
-from valutatrade_hub.core.utils import validate_amount, is_data_fresh
+from valutatrade_hub.core.models import Portfolio, User
+from valutatrade_hub.core.utils import is_data_fresh
+from valutatrade_hub.decorators import log_action, validate_input
 from valutatrade_hub.infra.database import db_manager
 from valutatrade_hub.infra.settings import settings
-
 
 logger = logging.getLogger(__name__)
 

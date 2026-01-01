@@ -2,7 +2,6 @@
 Исключения для Parser Service
 """
 
-from valutatrade_hub.core.exceptions import ApiRequestError
 
 
 class ParserServiceError(Exception):

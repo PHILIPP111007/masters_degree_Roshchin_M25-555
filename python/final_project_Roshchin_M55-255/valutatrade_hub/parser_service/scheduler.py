@@ -2,15 +2,14 @@
 Планировщик периодического обновления курсов
 """
 
+import logging
 import threading
 import time
-import logging
-from typing import Optional
+from typing import Optional, Any
 
-from valutatrade_hub.parser_service.updater import RatesUpdater
 from valutatrade_hub.parser_service.config import config
 from valutatrade_hub.parser_service.exceptions import RateFetchError
-
+from valutatrade_hub.parser_service.updater import RatesUpdater
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +78,8 @@ class RatesScheduler:
 
                 if result["success"]:
                     logger.info(
-                        f"Scheduled update successful: {result['rates_count']} rates updated"
+                        f"Scheduled update successful: {result['rates_count']} "
+                        "rates updated"
                     )
                 else:
                     logger.warning(
@@ -99,7 +99,7 @@ class RatesScheduler:
 
         logger.info("Scheduler loop stopped")
 
-    def run_once(self) -> Dict[str, Any]:
+    def run_once(self) -> dict[str, Any]:
         """
         Однократный запуск обновления
 
@@ -121,7 +121,7 @@ class RatesScheduler:
         """
         return self._is_running
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """
         Получение статуса планировщика
 

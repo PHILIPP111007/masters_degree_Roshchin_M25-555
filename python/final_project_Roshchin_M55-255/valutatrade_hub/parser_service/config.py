@@ -4,8 +4,8 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import Dict, Tuple, List
 from pathlib import Path
+from typing import Dict, Tuple
 
 
 def default_crypto_id_map() -> Dict[str, str]:
@@ -81,7 +81,8 @@ class ParserConfig:
                 "⚠️  Внимание: EXCHANGERATE_API_KEY не установлен в переменных окружения"
             )
             print(
-                "   Для фиатных валют будет использоваться публичный доступ (с ограничениями)"
+                "   Для фиатных валют будет использоваться публичный доступ"
+                " (с ограничениями)"
             )
 
     def validate(self) -> bool:

@@ -2,10 +2,11 @@
 Singleton для загрузки настроек
 """
 
-import tomli
+import threading
 from pathlib import Path
 from typing import Any, Dict
-import threading
+
+import tomli
 
 
 class SettingsLoader:

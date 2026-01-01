@@ -2,10 +2,10 @@
 Декораторы для ValutaTrade Hub
 """
 
-import logging
-from typing import Callable, Any, Optional
-from functools import wraps
 import inspect
+import logging
+from functools import wraps
+from typing import Any, Callable, Optional
 
 
 def log_action(
@@ -106,7 +106,8 @@ def validate_input(validation_rules: dict):
                         expected_type = rules["type"]
                         if not isinstance(value, expected_type):
                             raise TypeError(
-                                f"Параметр '{param_name}' должен быть типа {expected_type.__name__}, "
+                                f"Параметр '{param_name}' должен быть типа "
+                                f"{expected_type.__name__}, "
                                 f"получен {type(value).__name__}"
                             )
 
@@ -114,14 +115,16 @@ def validate_input(validation_rules: dict):
                     if "min" in rules and value is not None:
                         if value < rules["min"]:
                             raise ValueError(
-                                f"Параметр '{param_name}' должен быть не меньше {rules['min']}"
+                                f"Параметр '{param_name}' должен быть не меньше"
+                                f" {rules['min']}"
                             )
 
                     # Проверка максимального значения
                     if "max" in rules and value is not None:
                         if value > rules["max"]:
                             raise ValueError(
-                                f"Параметр '{param_name}' должен быть не больше {rules['max']}"
+                                f"Параметр '{param_name}' должен быть не больше"
+                                f" {rules['max']}"
                             )
 
                     # Проверка на пустоту

@@ -22,6 +22,8 @@ from valutatrade_hub.core.exceptions import (
     AuthenticationError,
     ValidationError,
 )
+from valutatrade_hub.parser_service import RatesUpdater, RatesScheduler, RatesStorage
+from valutatrade_hub.parser_service.config import config
 from valutatrade_hub.core.currencies import get_supported_currency_codes
 from valutatrade_hub.infra.settings import settings
 
@@ -141,6 +143,30 @@ class CryptoPortfolioCLI:
             "--to", "-t", dest="to_currency", required=True, help="Целевая валюта"
         )
 
+        # Команда update-rates
+        update_parser = subparsers.add_parser(
+            "update-rates", help="Обновить курсы валют"
+        )
+        update_parser.add_argument(
+            "--source",
+            choices=["coingecko", "exchangerate"],
+            help="Обновить данные только из указанного источника",
+        )
+
+        # Команда show-rates
+        show_rates_parser = subparsers.add_parser(
+            "show-rates", help="Показать курсы из кеша"
+        )
+        show_rates_parser.add_argument(
+            "--currency", "-c", help="Показать курс только для указанной валюты"
+        )
+        show_rates_parser.add_argument(
+            "--top", "-t", type=int, help="Показать N самых дорогих криптовалют"
+        )
+        show_rates_parser.add_argument(
+            "--base", "-b", default="USD", help="Базовая валюта для отображения"
+        )
+
         # Команда list-currencies
         subparsers.add_parser(
             "list-currencies", help="Показать список поддерживаемых валют"
@@ -209,6 +235,10 @@ class CryptoPortfolioCLI:
                 self._sell(args)
             elif args.command == "get-rate":
                 self._get_rate(args)
+            elif args.command == "update-rates":
+                self.update_rates(args)
+            elif args.command == "show-rates":
+                self.show_rates(args)
             else:
                 self.parser.print_help()
 
@@ -251,6 +281,94 @@ class CryptoPortfolioCLI:
             print(f"✓ {result['message']}")
         else:
             print("Вы не вошли в систему")
+
+    def update_rates(self, args):
+        """Обработка команды update-rates"""
+
+        try:
+            updater = RatesUpdater()
+
+            if args.source:
+                result = updater.run_update(source=args.source)
+                source_msg = f" from {args.source}"
+            else:
+                result = updater.run_update()
+                source_msg = ""
+
+            if result["success"]:
+                print(f"\n✓ Update successful{source_msg}")
+                print(f"  Rates updated: {result['rates_count']}")
+                print(f"  Sources: {', '.join(result['sources_updated'])}")
+                print(f"  Last refresh: {result['last_refresh']}")
+
+                if result["errors"]:
+                    print(f"\n⚠  Warnings:")
+                    for error in result["errors"]:
+                        print(f"  {error}")
+            else:
+                print(f"\n✗ Update failed{source_msg}")
+                if result["errors"]:
+                    print("  Errors:")
+                    for error in result["errors"]:
+                        print(f"  {error}")
+
+        except Exception as e:
+            print(f"\n✗ Error during update: {str(e)}")
+            print("  Check logs/parser.log for details")
+
+    def show_rates(self, args):
+        """Обработка команды show-rates"""
+        try:
+            storage = RatesStorage()
+            rates_data = storage.load_current_rates()
+
+            if not rates_data.get("pairs"):
+                print(
+                    "Локальный кеш курсов пуст. Выполните 'update-rates', чтобы загрузить данные."
+                )
+                return
+
+            pairs = rates_data["pairs"]
+            last_refresh = rates_data.get("last_refresh", "Unknown")
+            source = rates_data.get("source", "Unknown")
+
+            print(f"\nRates from cache (updated at {last_refresh}, source: {source}):")
+            print("=" * 60)
+
+            # Фильтрация по валюте
+            if args.currency:
+                currency = args.currency.upper()
+                filtered_pairs = {
+                    k: v
+                    for k, v in pairs.items()
+                    if k.startswith(f"{currency}_") or k.endswith(f"_{currency}")
+                }
+                if not filtered_pairs:
+                    print(f"Курс для '{args.currency}' не найден в кеше.")
+                    return
+                pairs = filtered_pairs
+
+            # Сортировка и ограничение
+            sorted_pairs = sorted(
+                pairs.items(), key=lambda x: x[1]["rate"], reverse=True
+            )
+
+            if args.top:
+                sorted_pairs = sorted_pairs[: args.top]
+
+            # Вывод
+            for pair_key, data in sorted_pairs:
+                rate = data["rate"]
+                updated = data["updated_at"]
+                source = data.get("source", "Unknown")
+                print(
+                    f"  {pair_key}: {rate:.6f} (updated: {updated}, source: {source})"
+                )
+
+            print(f"\nTotal rates shown: {len(sorted_pairs)}")
+
+        except Exception as e:
+            print(f"Ошибка при чтении кеша: {str(e)}")
 
     def _show_portfolio(self, args):
         """Обработка команды show-portfolio"""
@@ -360,5 +478,5 @@ class CryptoPortfolioCLI:
             print("\nКриптовалюты:")
             print(", ".join(crypto_currencies))
 
-        print(f"\nИспользуйте 'get-rate --from USD --to BTC' для получения курса")
-        print(f"Используйте 'buy --currency BTC --amount 0.01' для покупки")
+        print("\nИспользуйте 'get-rate --from USD --to BTC' для получения курса")
+        print("Используйте 'buy --currency BTC --amount 0.01' для покупки")

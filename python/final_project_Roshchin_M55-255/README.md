@@ -24,6 +24,8 @@ poetry install
 
 # Активация виртуального окружения
 poetry shell
+
+export EXCHANGERATE_API_KEY="ваш_ключ_здесь"
 ```
 
 ## Примеры использования
@@ -81,4 +83,21 @@ poetry run python main.py logout
 
 ```bash
 poetry run python main.py help
+```
+
+```bash
+# Обновить все курсы
+poetry run python main.py update-rates
+
+# Обновить только криптовалюты
+poetry run python main.py update-rates --source coingecko
+
+# Показать все курсы
+poetry run python main.py show-rates
+
+# Показать курсы для BTC
+poetry run python main.py show-rates --currency BTC
+
+# Показать топ-3 самые дорогие криптовалюты
+poetry run python main.py show-rates --top 3
 ```

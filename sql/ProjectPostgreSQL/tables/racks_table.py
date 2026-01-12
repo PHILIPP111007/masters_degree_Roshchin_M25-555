@@ -38,28 +38,42 @@ class RacksTable(DbTable):
         ]
 
     def all_by_room_id(self, room_id):
-        sql = "SELECT * FROM " + self.table_name()
-        sql += " WHERE room_id = %s"
-        sql += " ORDER BY rack_number"
+        query = sql.SQL(
+            "SELECT * FROM {table} WHERE room_id = %s ORDER BY rack_number"
+        ).format(table=sql.Identifier(self.table_name()))
         cur = self.dbconn.conn.cursor()
-        cur.execute(sql, (room_id,))
+        cur.execute(query, (room_id,))
         return cur.fetchall()
 
     def find_by_position(self, room_id, num):
-        sql = "SELECT * FROM " + self.table_name()
-        sql += " WHERE room_id = %s"
-        sql += " ORDER BY rack_number"
-        sql += " LIMIT 1 OFFSET %(offset)s"
+        """Поиск стеллажа по порядковому номеру в списке для конкретного помещения"""
+        query = sql.SQL("""
+            SELECT * FROM {table} 
+            WHERE room_id = %s 
+            ORDER BY rack_number 
+            LIMIT 1 OFFSET %s
+        """).format(table=sql.Identifier(self.table_name()))
         cur = self.dbconn.conn.cursor()
-        cur.execute(sql, {"room_id": room_id, "offset": num - 1})
+        cur.execute(query, (room_id, num - 1))
         return cur.fetchone()
 
+    def delete_by_position(self, room_id, num):
+        """Удаление по порядковому номеру в списке"""
+        rack = self.find_by_position(room_id, num)
+        if not rack:
+            return False, "Стеллаж не найден"
+
+        return self.delete_by_id(rack[0])
+
     def delete_by_id(self, rack_id):
-        sql = "DELETE FROM " + self.table_name() + " WHERE id = %s"
+        """Внутренний метод удаления по ID"""
+        query = sql.SQL("DELETE FROM {table} WHERE id = %s").format(
+            table=sql.Identifier(self.table_name())
+        )
         cur = self.dbconn.conn.cursor()
-        cur.execute(sql, (rack_id,))
+        cur.execute(query, (rack_id,))
         self.dbconn.conn.commit()
-        return True
+        return True, "Стеллаж удален"
 
     def check_unique_rack_number(self, room_id, rack_number, exclude_id=None):
         query = sql.SQL(
@@ -77,3 +91,19 @@ class RacksTable(DbTable):
         cur = self.dbconn.conn.cursor()
         cur.execute(query, params)
         return cur.fetchone()[0] == 0
+
+    def get_room_name_for_rack(self, rack_id):
+        """Получить название помещения для стеллажа (внутренний метод)"""
+        query = sql.SQL("""
+            SELECT r.room_name 
+            FROM {rooms_table} r
+            JOIN {racks_table} rk ON r.id = rk.room_id
+            WHERE rk.id = %s
+        """).format(
+            rooms_table=sql.Identifier(self.dbconn.prefix + "rooms"),
+            racks_table=sql.Identifier(self.table_name()),
+        )
+        cur = self.dbconn.conn.cursor()
+        cur.execute(query, (rack_id,))
+        result = cur.fetchone()
+        return result[0] if result else None

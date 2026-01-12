@@ -36,12 +36,7 @@ class DbTable:
         return []
 
     def create(self):
-        # Создаем таблицу с помощью безопасного SQL-конструирования
-        query = sql.SQL("CREATE TABLE {table} (").format(
-            table=sql.Identifier(self.table_name())
-        )
-
-        # Добавляем колонки
+        # Безопасное создание таблицы
         columns_def = []
         for k, v in sorted(self.columns().items(), key=lambda x: x[0]):
             col_def = sql.SQL("{column} {definition}").format(
@@ -49,15 +44,14 @@ class DbTable:
             )
             columns_def.append(col_def)
 
-        # Добавляем ограничения таблицы
         constraints = self.table_constraints()
         foreign_keys = self.foreign_keys()
 
-        all_constraints = columns_def + [sql.SQL(c) for c in constraints + foreign_keys]
+        all_definitions = columns_def + [sql.SQL(c) for c in constraints + foreign_keys]
 
         query = sql.SQL("CREATE TABLE {table} ({definitions})").format(
             table=sql.Identifier(self.table_name()),
-            definitions=sql.SQL(", ").join(all_constraints),
+            definitions=sql.SQL(", ").join(all_definitions),
         )
 
         cur = self.dbconn.conn.cursor()
@@ -131,77 +125,3 @@ class DbTable:
         cur = self.dbconn.conn.cursor()
         cur.execute(query)
         return cur.fetchall()
-
-    def find_by_position(self, num):
-        # Безопасный запрос по позиции (с OFFSET)
-        query = sql.SQL(
-            "SELECT * FROM {table} ORDER BY {order_by} LIMIT 1 OFFSET %s"
-        ).format(
-            table=sql.Identifier(self.table_name()),
-            order_by=sql.SQL(", ").join(map(sql.Identifier, self.primary_key())),
-        )
-        cur = self.dbconn.conn.cursor()
-        cur.execute(query, (num - 1,))
-        return cur.fetchone()
-
-    def delete_by_id(self, id_value, id_column="id"):
-        # Безопасное удаление по ID
-        query = sql.SQL("DELETE FROM {table} WHERE {id_column} = %s").format(
-            table=sql.Identifier(self.table_name()), id_column=sql.Identifier(id_column)
-        )
-        cur = self.dbconn.conn.cursor()
-        cur.execute(query, (id_value,))
-        self.dbconn.conn.commit()
-        return cur.rowcount > 0
-
-    def update(self, id_value, data_dict, id_column="id"):
-        # Безопасное обновление записи
-        if not data_dict:
-            return False
-
-        set_clauses = []
-        values = []
-
-        for column, value in data_dict.items():
-            set_clauses.append(
-                sql.SQL("{column} = %s").format(column=sql.Identifier(column))
-            )
-            values.append(value)
-
-        values.append(id_value)  # Для WHERE условия
-
-        query = sql.SQL(
-            "UPDATE {table} SET {set_clause} WHERE {id_column} = %s"
-        ).format(
-            table=sql.Identifier(self.table_name()),
-            set_clause=sql.SQL(", ").join(set_clauses),
-            id_column=sql.Identifier(id_column),
-        )
-
-        cur = self.dbconn.conn.cursor()
-        cur.execute(query, values)
-        self.dbconn.conn.commit()
-        return cur.rowcount > 0
-
-    def execute_query(self, query, params=None):
-        """Безопасное выполнение произвольного запроса"""
-        cur = self.dbconn.conn.cursor()
-        if params:
-            cur.execute(query, params)
-        else:
-            cur.execute(query)
-
-        if query.strip().upper().startswith("SELECT"):
-            return cur.fetchall()
-        else:
-            self.dbconn.conn.commit()
-            return cur.rowcount
-
-    def count(self):
-        """Безопасный подсчет записей"""
-        query = sql.SQL("SELECT COUNT(*) FROM {table}").format(
-            table=sql.Identifier(self.table_name())
-        )
-        cur = self.dbconn.conn.cursor()
-        cur.execute(query)
-        return cur.fetchone()[0]

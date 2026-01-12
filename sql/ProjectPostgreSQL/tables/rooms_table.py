@@ -22,20 +22,25 @@ class RoomsTable(DbTable):
         return ["id"]
 
     def find_by_position(self, num):
-        sql = "SELECT * FROM " + self.table_name()
-        sql += " ORDER BY room_name"
-        sql += " LIMIT 1 OFFSET %(offset)s"
+        sql_query = sql.SQL(
+            "SELECT * FROM {table} ORDER BY room_name LIMIT 1 OFFSET %s"
+        ).format(table=sql.Identifier(self.table_name()))
         cur = self.dbconn.conn.cursor()
-        cur.execute(sql, {"offset": num - 1})
+        cur.execute(sql_query, (num - 1,))
         return cur.fetchone()
 
-    def delete_by_id(self, room_id):
-        # Сначала проверяем, есть ли связанные стеллажи
+    def delete_by_position(self, num):
+        """Удаление по порядковому номеру в списке"""
+        room = self.find_by_position(num)
+        if not room:
+            return False, "Помещение не найдено"
+
+        # Проверяем, есть ли связанные стеллажи
         sql_check = sql.SQL(
             "SELECT COUNT(*) FROM {racks_table} WHERE room_id = %s"
         ).format(racks_table=sql.Identifier(self.dbconn.prefix + "racks"))
         cur = self.dbconn.conn.cursor()
-        cur.execute(sql_check, (room_id,))
+        cur.execute(sql_check, (room[0],))
         count = cur.fetchone()[0]
 
         if count > 0:
@@ -48,31 +53,55 @@ class RoomsTable(DbTable):
         query = sql.SQL("DELETE FROM {table} WHERE id = %s").format(
             table=sql.Identifier(self.table_name())
         )
-        cur.execute(query, (room_id,))
+        cur.execute(query, (room[0],))
         self.dbconn.conn.commit()
         return True, "Помещение удалено"
 
-    def update(self, room_id, data):
-        sql = "UPDATE " + self.table_name() + " SET "
-        sql += "room_name = %s, useful_volume = %s, "
-        sql += "min_temperature = %s, max_temperature = %s, "
-        sql += "min_humidity = %s, max_humidity = %s "
-        sql += "WHERE id = %s"
+    def update_by_position(self, num, data):
+        """Обновление по порядковому номеру в списке"""
+        room = self.find_by_position(num)
+        if not room:
+            return False, "Помещение не найдено"
 
-        cur = self.dbconn.conn.cursor()
-        cur.execute(
-            sql,
-            (
-                data["room_name"],
-                data["useful_volume"],
-                data["min_temperature"],
-                data["max_temperature"],
-                data["min_humidity"],
-                data["max_humidity"],
-                room_id,
-            ),
+        return self.update_by_id(room[0], data)
+
+    def update_by_id(self, room_id, data):
+        """Обновление по ID (внутренний метод)"""
+        set_clauses = []
+        values = []
+
+        for key in [
+            "room_name",
+            "useful_volume",
+            "min_temperature",
+            "max_temperature",
+            "min_humidity",
+            "max_humidity",
+        ]:
+            if key in data:
+                set_clauses.append(
+                    sql.SQL("{column} = %s").format(column=sql.Identifier(key))
+                )
+                values.append(data[key])
+
+        if not set_clauses:
+            return False, "Нет данных для обновления"
+
+        values.append(room_id)  # Для WHERE условия
+
+        query = sql.SQL("UPDATE {table} SET {set_clause} WHERE id = %s").format(
+            table=sql.Identifier(self.table_name()),
+            set_clause=sql.SQL(", ").join(set_clauses),
         )
-        self.dbconn.conn.commit()
+
+        try:
+            cur = self.dbconn.conn.cursor()
+            cur.execute(query, values)
+            self.dbconn.conn.commit()
+            return True, "Помещение обновлено"
+        except Exception as e:
+            self.dbconn.conn.rollback()
+            return False, f"Ошибка при обновлении: {e}"
 
     def table_constraints(self):
         return [
@@ -82,3 +111,12 @@ class RoomsTable(DbTable):
             "CHECK (COALESCE(min_humidity, 0) >= 0 AND COALESCE(min_humidity, 0) <= 100)",
             "CHECK (COALESCE(max_humidity, 100) >= 0 AND COALESCE(max_humidity, 100) <= 100)",
         ]
+
+    def find_by_name(self, name):
+        """Поиск по названию (для внутреннего использования)"""
+        query = sql.SQL("SELECT * FROM {table} WHERE room_name = %s").format(
+            table=sql.Identifier(self.table_name())
+        )
+        cur = self.dbconn.conn.cursor()
+        cur.execute(query, (name,))
+        return cur.fetchone()

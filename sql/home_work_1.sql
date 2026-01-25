@@ -131,3 +131,42 @@ FROM clients c
 LEFT JOIN products p ON c.id = p.client_id
 GROUP BY c.id, c.name_of_a_legal_entity
 ORDER BY COUNT(p.id) DESC;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- Таблица помещений
+CREATE TABLE rooms (
+    id INTEGER PRIMARY KEY,
+    room_name TEXT NOT NULL,
+    useful_volume REAL NOT NULL,
+    min_temperature REAL,
+    max_temperature REAL,
+    min_humidity REAL,
+    max_humidity REAL
+);
+
+-- Таблица стеллажей
+CREATE TABLE racks (
+    id INTEGER PRIMARY KEY,
+    room_id INTEGER NOT NULL,
+    rack_number TEXT NOT NULL,
+    storage_spaces_count INTEGER NOT NULL,
+    space_height REAL NOT NULL,
+    space_width REAL NOT NULL,
+    space_length REAL NOT NULL,
+    max_total_load REAL NOT NULL,
+    FOREIGN KEY (room_id) REFERENCES rooms(id),
+    UNIQUE (rack_number, room_id)
+);

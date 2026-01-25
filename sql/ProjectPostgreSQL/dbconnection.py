@@ -13,10 +13,6 @@ class DbConnection:
         )
         self.conn.autocommit = False
 
-    def __del__(self):
-        if self.conn:
-            self.conn.close()
-
     def test(self):
         try:
             # Используем безопасные запросы

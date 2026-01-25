@@ -5,7 +5,7 @@ from psycopg2 import sql
 
 class RacksTable(DbTable):
     def table_name(self):
-        return self.dbconn.prefix + "racks"
+        return "racks"  # Только имя таблицы без префикса
 
     def columns(self):
         return {
@@ -18,6 +18,18 @@ class RacksTable(DbTable):
             "space_length": ["real", "NOT NULL"],
             "max_total_load": ["real", "NOT NULL"],
         }
+
+    def column_names_without_id(self):
+        # Явно задаем порядок колонок для вставки
+        return [
+            "room_id",
+            "rack_number",
+            "storage_spaces_count",
+            "space_height",
+            "space_width",
+            "space_length",
+            "max_total_load",
+        ]
 
     def primary_key(self):
         return ["id"]
@@ -40,7 +52,7 @@ class RacksTable(DbTable):
     def all_by_room_id(self, room_id):
         query = sql.SQL(
             "SELECT * FROM {table} WHERE room_id = %s ORDER BY rack_number"
-        ).format(table=sql.Identifier(self.table_name()))
+        ).format(table=sql.Identifier(self.full_table_name()))
         cur = self.dbconn.conn.cursor()
         cur.execute(query, (room_id,))
         return cur.fetchall()
@@ -52,7 +64,7 @@ class RacksTable(DbTable):
             WHERE room_id = %s 
             ORDER BY rack_number 
             LIMIT 1 OFFSET %s
-        """).format(table=sql.Identifier(self.table_name()))
+        """).format(table=sql.Identifier(self.full_table_name()))
         cur = self.dbconn.conn.cursor()
         cur.execute(query, (room_id, num - 1))
         return cur.fetchone()
@@ -63,47 +75,27 @@ class RacksTable(DbTable):
         if not rack:
             return False, "Стеллаж не найден"
 
-        return self.delete_by_id(rack[0])
-
-    def delete_by_id(self, rack_id):
-        """Внутренний метод удаления по ID"""
         query = sql.SQL("DELETE FROM {table} WHERE id = %s").format(
-            table=sql.Identifier(self.table_name())
+            table=sql.Identifier(self.full_table_name())
         )
         cur = self.dbconn.conn.cursor()
-        cur.execute(query, (rack_id,))
+        cur.execute(query, (rack[0],))
         self.dbconn.conn.commit()
         return True, "Стеллаж удален"
 
     def check_unique_rack_number(self, room_id, rack_number, exclude_id=None):
         query = sql.SQL(
             "SELECT COUNT(*) FROM {table} WHERE room_id = %s AND rack_number = %s"
-        ).format(table=sql.Identifier(self.table_name()))
+        ).format(table=sql.Identifier(self.full_table_name()))
 
         params = [room_id, rack_number]
 
         if exclude_id:
             query = sql.SQL(
                 "SELECT COUNT(*) FROM {table} WHERE room_id = %s AND rack_number = %s AND id != %s"
-            ).format(table=sql.Identifier(self.table_name()))
+            ).format(table=sql.Identifier(self.full_table_name()))
             params.append(exclude_id)
 
         cur = self.dbconn.conn.cursor()
         cur.execute(query, params)
         return cur.fetchone()[0] == 0
-
-    def get_room_name_for_rack(self, rack_id):
-        """Получить название помещения для стеллажа (внутренний метод)"""
-        query = sql.SQL("""
-            SELECT r.room_name 
-            FROM {rooms_table} r
-            JOIN {racks_table} rk ON r.id = rk.room_id
-            WHERE rk.id = %s
-        """).format(
-            rooms_table=sql.Identifier(self.dbconn.prefix + "rooms"),
-            racks_table=sql.Identifier(self.table_name()),
-        )
-        cur = self.dbconn.conn.cursor()
-        cur.execute(query, (rack_id,))
-        result = cur.fetchone()
-        return result[0] if result else None

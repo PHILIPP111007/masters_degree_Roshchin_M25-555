@@ -144,16 +144,7 @@ class DbTable:
 
             cur = self.dbconn.conn.cursor()
             cur.execute(query)
-            rows = cur.fetchall()
-
-            # Проверяем, что данные существуют
-            if rows:
-                # Проверяем первую строку на наличие None
-                for i, row in enumerate(rows):
-                    if None in row:
-                        print(f"Внимание: строка {i} содержит None значения: {row}")
-
-            return rows
+            return cur.fetchall()
         except psycopg2.Error as e:
             self.dbconn.conn.rollback()
             # Если таблицы не существует, возвращаем пустой список

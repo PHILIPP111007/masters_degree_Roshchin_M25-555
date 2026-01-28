@@ -5,9 +5,10 @@ from psycopg2 import sql
 
 class RacksTable(DbTable):
     def table_name(self):
-        return "racks"  # Только имя таблицы без префикса
+        return "racks"
 
     def columns(self):
+        # Важно: порядок имеет значение!
         return {
             "id": ["serial", "PRIMARY KEY"],
             "room_id": ["integer", "NOT NULL"],
@@ -20,7 +21,7 @@ class RacksTable(DbTable):
         }
 
     def column_names_without_id(self):
-        # Явно задаем порядок колонок для вставки
+        # Явно задаем правильный порядок для вставки
         return [
             "room_id",
             "rack_number",
@@ -48,54 +49,3 @@ class RacksTable(DbTable):
             "CHECK (space_height > 0 AND space_width > 0 AND space_length > 0)",
             "CHECK (max_total_load >= 0)",
         ]
-
-    def all_by_room_id(self, room_id):
-        query = sql.SQL(
-            "SELECT * FROM {table} WHERE room_id = %s ORDER BY rack_number"
-        ).format(table=sql.Identifier(self.full_table_name()))
-        cur = self.dbconn.conn.cursor()
-        cur.execute(query, (room_id,))
-        return cur.fetchall()
-
-    def find_by_position(self, room_id, num):
-        """Поиск стеллажа по порядковому номеру в списке для конкретного помещения"""
-        query = sql.SQL("""
-            SELECT * FROM {table} 
-            WHERE room_id = %s 
-            ORDER BY rack_number 
-            LIMIT 1 OFFSET %s
-        """).format(table=sql.Identifier(self.full_table_name()))
-        cur = self.dbconn.conn.cursor()
-        cur.execute(query, (room_id, num - 1))
-        return cur.fetchone()
-
-    def delete_by_position(self, room_id, num):
-        """Удаление по порядковому номеру в списке"""
-        rack = self.find_by_position(room_id, num)
-        if not rack:
-            return False, "Стеллаж не найден"
-
-        query = sql.SQL("DELETE FROM {table} WHERE id = %s").format(
-            table=sql.Identifier(self.full_table_name())
-        )
-        cur = self.dbconn.conn.cursor()
-        cur.execute(query, (rack[0],))
-        self.dbconn.conn.commit()
-        return True, "Стеллаж удален"
-
-    def check_unique_rack_number(self, room_id, rack_number, exclude_id=None):
-        query = sql.SQL(
-            "SELECT COUNT(*) FROM {table} WHERE room_id = %s AND rack_number = %s"
-        ).format(table=sql.Identifier(self.full_table_name()))
-
-        params = [room_id, rack_number]
-
-        if exclude_id:
-            query = sql.SQL(
-                "SELECT COUNT(*) FROM {table} WHERE room_id = %s AND rack_number = %s AND id != %s"
-            ).format(table=sql.Identifier(self.full_table_name()))
-            params.append(exclude_id)
-
-        cur = self.dbconn.conn.cursor()
-        cur.execute(query, params)
-        return cur.fetchone()[0] == 0

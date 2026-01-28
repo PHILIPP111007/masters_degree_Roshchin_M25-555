@@ -26,19 +26,21 @@ class DbTable:
         return self.dbconn.prefix + self.table_name()
 
     def columns(self):
-        return {"test": ["integer", "PRIMARY KEY"]}
+        return {"id": ["serial", "PRIMARY KEY"]}
 
     def column_names(self):
-        return sorted(self.columns().keys(), key=lambda x: x)
+        # Возвращаем имена колонок в порядке их определения
+        return list(self.columns().keys())
 
     def primary_key(self):
         return ["id"]
 
     def column_names_without_id(self):
-        res = sorted(self.columns().keys(), key=lambda x: x)
-        if "id" in res:
-            res.remove("id")
-        return res
+        # Возвращаем имена колонок без ID в порядке определения
+        cols = self.column_names()
+        if "id" in cols:
+            cols.remove("id")
+        return cols
 
     def table_constraints(self):
         return []
@@ -48,15 +50,12 @@ class DbTable:
 
     def create(self):
         """Создание таблицы"""
-        return self._execute_create()
-
-    def _execute_create(self):
-        # Внутренний метод создания таблицы
         try:
-            self.dbconn.conn.rollback()  # Сбрасываем любую активную транзакцию
+            self.dbconn.conn.rollback()
 
             columns_def = []
-            for k, v in sorted(self.columns().items(), key=lambda x: x[0]):
+            # Сохраняем порядок колонок как в columns()
+            for k, v in self.columns().items():
                 col_def = sql.SQL("{column} {definition}").format(
                     column=sql.Identifier(k), definition=sql.SQL(" ".join(v))
                 )
@@ -84,19 +83,11 @@ class DbTable:
             self.dbconn.conn.rollback()
             print(f"Ошибка при создании таблицы {self.full_table_name()}: {e}")
             return False
-        except Exception as e:
-            self.dbconn.conn.rollback()
-            print(f"Неизвестная ошибка: {e}")
-            return False
 
     def drop(self):
         """Удаление таблицы"""
-        return self._execute_drop()
-
-    def _execute_drop(self):
-        # Внутренний метод удаления таблицы
         try:
-            self.dbconn.conn.rollback()  # Сбрасываем любую активную транзакцию
+            self.dbconn.conn.rollback()
 
             query = sql.SQL("DROP TABLE IF EXISTS {table} CASCADE").format(
                 table=sql.Identifier(self.full_table_name())
@@ -110,25 +101,18 @@ class DbTable:
             self.dbconn.conn.rollback()
             print(f"Ошибка при удалении таблицы {self.full_table_name()}: {e}")
             return False
-        except Exception as e:
-            self.dbconn.conn.rollback()
-            print(f"Неизвестная ошибка: {e}")
-            return False
 
     def insert_one(self, vals):
         """Вставка одной записи"""
-        return self._execute_insert(vals)
-
-    def _execute_insert(self, vals):
-        # Внутренний метод вставки
         try:
-            self.dbconn.conn.rollback()  # Сбрасываем любую активную транзакцию
+            self.dbconn.conn.rollback()
 
             column_names = self.column_names_without_id()
             if len(vals) != len(column_names):
-                raise ValueError(
-                    f"Ожидается {len(column_names)} значений ({column_names}), получено {len(vals)}"
+                print(
+                    f"Ошибка: ожидается {len(column_names)} значений для колонок {column_names}, получено {len(vals)}"
                 )
+                return False
 
             # Создаем плейсхолдеры для параметров
             placeholders = sql.SQL(", ").join([sql.Placeholder()] * len(vals))
@@ -147,77 +131,33 @@ class DbTable:
             self.dbconn.conn.rollback()
             print(f"Ошибка при вставке в таблицу {self.full_table_name()}: {e}")
             return False
-        except Exception as e:
-            self.dbconn.conn.rollback()
-            print(f"Неизвестная ошибка при вставке: {e}")
-            return False
-
-    def first(self):
-        """Получение первой записи"""
-        return self._execute_first()
-
-    def _execute_first(self):
-        # Внутренний метод получения первой записи
-        try:
-            self.dbconn.conn.rollback()  # Сбрасываем любую активную транзакцию
-
-            query = sql.SQL("SELECT * FROM {table} ORDER BY {order_by} LIMIT 1").format(
-                table=sql.Identifier(self.full_table_name()),
-                order_by=sql.SQL(", ").join(map(sql.Identifier, self.primary_key())),
-            )
-            cur = self.dbconn.conn.cursor()
-            cur.execute(query)
-            return cur.fetchone()
-        except psycopg2.Error as e:
-            self.dbconn.conn.rollback()
-            print(f"Ошибка при запросе: {e}")
-            return None
-
-    def last(self):
-        """Получение последней записи"""
-        return self._execute_last()
-
-    def _execute_last(self):
-        # Внутренний метод получения последней записи
-        try:
-            self.dbconn.conn.rollback()  # Сбрасываем любую активную транзакцию
-
-            order_by_desc = [
-                sql.SQL("{col} DESC").format(col=sql.Identifier(x))
-                for x in self.primary_key()
-            ]
-            query = sql.SQL("SELECT * FROM {table} ORDER BY {order_by} LIMIT 1").format(
-                table=sql.Identifier(self.full_table_name()),
-                order_by=sql.SQL(", ").join(order_by_desc),
-            )
-            cur = self.dbconn.conn.cursor()
-            cur.execute(query)
-            return cur.fetchone()
-        except psycopg2.Error as e:
-            self.dbconn.conn.rollback()
-            print(f"Ошибка при запросе: {e}")
-            return None
 
     def all(self):
         """Получение всех записей"""
-        return self._execute_all()
-
-    def _execute_all(self):
-        # Внутренний метод получения всех записей
         try:
-            self.dbconn.conn.rollback()  # Сбрасываем любую активную транзакцию
+            self.dbconn.conn.rollback()
 
             query = sql.SQL("SELECT * FROM {table} ORDER BY {order_by}").format(
                 table=sql.Identifier(self.full_table_name()),
                 order_by=sql.SQL(", ").join(map(sql.Identifier, self.primary_key())),
             )
+
             cur = self.dbconn.conn.cursor()
             cur.execute(query)
-            return cur.fetchall()
+            rows = cur.fetchall()
+
+            # Проверяем, что данные существуют
+            if rows:
+                # Проверяем первую строку на наличие None
+                for i, row in enumerate(rows):
+                    if None in row:
+                        print(f"Внимание: строка {i} содержит None значения: {row}")
+
+            return rows
         except psycopg2.Error as e:
             self.dbconn.conn.rollback()
             # Если таблицы не существует, возвращаем пустой список
             if "relation" in str(e) and "does not exist" in str(e):
                 return []
-            print(f"Ошибка при запросе всех записей из {self.full_table_name()}: {e}")
+            print(f"Ошибка при запросе всех записей: {e}")
             return []

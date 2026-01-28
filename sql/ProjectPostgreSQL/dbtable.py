@@ -47,7 +47,11 @@ class DbTable:
         return []
 
     def create(self):
-        # Безопасное создание таблицы
+        """Создание таблицы"""
+        return self._execute_create()
+
+    def _execute_create(self):
+        # Внутренний метод создания таблицы
         try:
             self.dbconn.conn.rollback()  # Сбрасываем любую активную транзакцию
 
@@ -85,8 +89,38 @@ class DbTable:
             print(f"Неизвестная ошибка: {e}")
             return False
 
+    def drop(self):
+        """Удаление таблицы"""
+        return self._execute_drop()
+
+    def _execute_drop(self):
+        # Внутренний метод удаления таблицы
+        try:
+            self.dbconn.conn.rollback()  # Сбрасываем любую активную транзакцию
+
+            query = sql.SQL("DROP TABLE IF EXISTS {table} CASCADE").format(
+                table=sql.Identifier(self.full_table_name())
+            )
+
+            cur = self.dbconn.conn.cursor()
+            cur.execute(query)
+            self.dbconn.conn.commit()
+            return True
+        except psycopg2.Error as e:
+            self.dbconn.conn.rollback()
+            print(f"Ошибка при удалении таблицы {self.full_table_name()}: {e}")
+            return False
+        except Exception as e:
+            self.dbconn.conn.rollback()
+            print(f"Неизвестная ошибка: {e}")
+            return False
+
     def insert_one(self, vals):
-        # Безопасная вставка с параметризованным запросом
+        """Вставка одной записи"""
+        return self._execute_insert(vals)
+
+    def _execute_insert(self, vals):
+        # Внутренний метод вставки
         try:
             self.dbconn.conn.rollback()  # Сбрасываем любую активную транзакцию
 
@@ -119,7 +153,11 @@ class DbTable:
             return False
 
     def first(self):
-        # Безопасный запрос первого элемента
+        """Получение первой записи"""
+        return self._execute_first()
+
+    def _execute_first(self):
+        # Внутренний метод получения первой записи
         try:
             self.dbconn.conn.rollback()  # Сбрасываем любую активную транзакцию
 
@@ -136,7 +174,11 @@ class DbTable:
             return None
 
     def last(self):
-        # Безопасный запрос последнего элемента
+        """Получение последней записи"""
+        return self._execute_last()
+
+    def _execute_last(self):
+        # Внутренний метод получения последней записи
         try:
             self.dbconn.conn.rollback()  # Сбрасываем любую активную транзакцию
 
@@ -157,7 +199,11 @@ class DbTable:
             return None
 
     def all(self):
-        # Безопасный запрос всех элементов
+        """Получение всех записей"""
+        return self._execute_all()
+
+    def _execute_all(self):
+        # Внутренний метод получения всех записей
         try:
             self.dbconn.conn.rollback()  # Сбрасываем любую активную транзакцию
 

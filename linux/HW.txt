@@ -1,0 +1,23 @@
+mkdir /home/dir-123456
+useradd -u 5501 user1
+useradd -u 5502 user2
+useradd -u 5503 user3
+groupadd -g 4444 curators
+useradd curator1 -G curators
+useradd curator2 -G curators
+groupadd project
+usermod -aG project user1
+usermod -aG project user2
+usermod -aG project user3
+chown root:project /home/dir-123456
+chmod 2770 /home/dir-123456
+setfacl -m g:curators:r-x /home/dir-123456
+
+user1:x:5501:1007::/home/user1:/bin/bash
+user2:x:5502:1008::/home/user2:/bin/bash
+user3:x:5503:1009::/home/user3:/bin/bash
+curator1:x:1010:4444::/home/curator1:/bin/bash
+curator2:x:1011:4444::/home/curator2:/bin/bash
+
+project:x:1007:user1,user2,user3
+curators:x:4444:curator1,curator2

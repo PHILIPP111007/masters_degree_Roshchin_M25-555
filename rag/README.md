@@ -8,7 +8,6 @@ python diagnosis_rag.py \
     --input-file "./mkb10.xlsx" \
     --column "Название диагноза" \
     --index-file "./mkb_index.faiss" \
-    --top-k 15 \
     --sentences-file "./sentences.pkl"
 ```
 

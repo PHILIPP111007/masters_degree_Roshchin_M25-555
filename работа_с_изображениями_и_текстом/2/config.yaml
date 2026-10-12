@@ -1,0 +1,28 @@
+seed: 42
+
+data:
+  root: data
+  image_size: 224
+  max_text_length: 64
+  val_size: 0.15
+
+model:
+  image_model: resnet18
+  text_model: distilbert-base-uncased
+  pretrained: true
+  freeze_encoders: false
+  fusion_dim: 256
+  dropout: 0.20
+
+training:
+  batch_size: 4
+  num_workers: 2
+  epochs: 10
+  grad_accumulation: 1
+  amp: true
+  text_lr: 0.00001
+  image_lr: 0.00001
+  classifier_lr: 0.00010
+  weight_decay: 0.00010
+  checkpoint_path: artifacts/best_model.pt
+  history_path: artifacts/history.csv
